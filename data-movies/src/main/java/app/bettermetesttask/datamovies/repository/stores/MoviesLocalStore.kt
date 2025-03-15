@@ -20,7 +20,7 @@ class MoviesLocalStore @Inject constructor(
     }
 
     suspend fun getMovie(id: Int): MovieEntity {
-        return moviesDao.selectMovieById(id).first()
+        return moviesDao.selectMovieById(id)
     }
 
     suspend fun insertMovie(movie: MovieEntity) {
