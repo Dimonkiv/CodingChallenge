@@ -73,11 +73,14 @@ class MoviesComposeFragment : Fragment(), Injectable {
                 val viewState by viewModel.moviesStateFlow.collectAsState()
                 MoviesComposeScreen(viewState, likeMovie = { movie ->
                     viewModel.likeMovie(movie)
-                }, viewLoaded = {
-                    viewModel.loadMovies()
                 })
             }
         }
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.loadMovies()
     }
 }
 
@@ -85,9 +88,7 @@ class MoviesComposeFragment : Fragment(), Injectable {
 private fun MoviesComposeScreen(
     moviesState: MoviesState,
     likeMovie: (Movie) -> Unit,
-    viewLoaded: () -> Unit
 ) {
-    viewLoaded()
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -111,6 +112,18 @@ private fun MoviesComposeScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
+                }
+            }
+
+            is MoviesState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = moviesState.errorMsg,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
         }
@@ -174,5 +187,5 @@ private fun PreviewsMoviesComposeScreen() {
                 liked = index % 2 == 0,
             )
         }
-    ), likeMovie = {}, viewLoaded = {})
+    ), likeMovie = {})
 }
