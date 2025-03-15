@@ -10,5 +10,8 @@ sealed class MoviesState {
 
     data class Error(val errorMsg: String) : MoviesState()
 
-    data class Loaded(val movies: List<Movie>) : MoviesState()
+    data class Loaded(
+        val movies: List<Movie> = emptyList(),
+        val selectedMovie: Movie? = null
+    ) : MoviesState()
 }

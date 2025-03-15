@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -71,9 +72,18 @@ class MoviesComposeFragment : Fragment(), Injectable {
             )
             setContent {
                 val viewState by viewModel.moviesStateFlow.collectAsState()
-                MoviesComposeScreen(viewState, likeMovie = { movie ->
-                    viewModel.likeMovie(movie)
-                })
+                MoviesComposeScreen(
+                    viewState,
+                    openMovieDetail = { movie ->
+                        viewModel.openMovieDetails(movie)
+                    },
+                    likeMovie = { movie ->
+                        viewModel.likeMovie(movie)
+                    },
+                    closeBottomSheet = {
+                        viewModel.closeBottomSheet()
+                    }
+                )
             }
         }
     }
@@ -82,12 +92,17 @@ class MoviesComposeFragment : Fragment(), Injectable {
         super.onViewCreated(view, savedInstanceState)
         viewModel.loadMovies()
     }
+
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MoviesComposeScreen(
     moviesState: MoviesState,
+    openMovieDetail: (Movie) -> Unit,
+    closeBottomSheet: () -> Unit,
     likeMovie: (Movie) -> Unit,
+
 ) {
     Box(
         modifier = Modifier
@@ -95,18 +110,32 @@ private fun MoviesComposeScreen(
             .background(Color.White)
     ) {
         when (moviesState) {
-            MoviesState.Initial -> {}
+            is MoviesState.Initial -> Unit
+
             is MoviesState.Loaded -> {
                 LazyColumn {
                     items(moviesState.movies) { item ->
-                        MovieItem(item, onLikeClicked = {
-                            likeMovie(item)
-                        })
+                        MovieItem(
+                            item,
+                            onMovieClicked = {
+                                openMovieDetail(it)
+                            },
+                            onLikeClicked = {
+                                likeMovie(it)
+                            }
+                        )
                     }
                 }
+
+                MovieBottomSheet(
+                    movie = moviesState.selectedMovie,
+                    onStateChange = {
+                        closeBottomSheet()
+                    }
+                )
             }
 
-            MoviesState.Loading -> {
+            is MoviesState.Loading -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -131,13 +160,18 @@ private fun MoviesComposeScreen(
 }
 
 @Composable
-fun MovieItem(movie: Movie, onLikeClicked: (Int) -> Unit) {
+fun MovieItem(
+    movie: Movie,
+    onMovieClicked: (Movie) -> Unit,
+    onLikeClicked: (Movie) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        onClick = { onMovieClicked(movie) }
     ) {
         Row(
             modifier = Modifier
@@ -163,7 +197,7 @@ fun MovieItem(movie: Movie, onLikeClicked: (Int) -> Unit) {
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            IconButton(onClick = { onLikeClicked(movie.id) }) {
+            IconButton(onClick = { onLikeClicked(movie) }) {
                 Icon(
                     imageVector = if (movie.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Like Button",
@@ -187,5 +221,5 @@ private fun PreviewsMoviesComposeScreen() {
                 liked = index % 2 == 0,
             )
         }
-    ), likeMovie = {})
+    ), likeMovie = {}, openMovieDetail = {}, closeBottomSheet = {})
 }
