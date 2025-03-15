@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,12 +30,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,41 +76,72 @@ class MoviesComposeFragment : Fragment(), Injectable {
             )
             setContent {
                 val viewState by viewModel.moviesStateFlow.collectAsState()
-                MoviesComposeScreen(viewState, likeMovie = { movie ->
-                    viewModel.likeMovie(movie)
-                }, viewLoaded = {
-                    viewModel.loadMovies()
-                })
+                MoviesComposeScreen(
+                    viewState,
+                    openMovieDetail = { movie ->
+                        viewModel.openMovieDetails(movie)
+                    },
+                    likeMovie = { movie ->
+                        viewModel.likeMovie(movie)
+                    },
+                    closeBottomSheet = { movie ->
+                        viewModel.closeBottomSheet(movie)
+                    },
+                    loadData = {
+                        viewModel.loadMovies()
+                    }
+                )
             }
         }
     }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.loadMovies()
+    }
+
 }
 
 @Composable
 private fun MoviesComposeScreen(
     moviesState: MoviesState,
+    openMovieDetail: (Movie) -> Unit,
+    closeBottomSheet: (Movie) -> Unit,
+    loadData: () -> Unit,
     likeMovie: (Movie) -> Unit,
-    viewLoaded: () -> Unit
 ) {
-    viewLoaded()
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
         when (moviesState) {
-            MoviesState.Initial -> {}
+            is MoviesState.Initial -> Unit
+
             is MoviesState.Loaded -> {
                 LazyColumn {
                     items(moviesState.movies) { item ->
-                        MovieItem(item, onLikeClicked = {
-                            likeMovie(item)
-                        })
+                        MovieItem(
+                            item,
+                            onMovieClicked = {
+                                openMovieDetail(it)
+                            },
+                            onLikeClicked = {
+                                likeMovie(it)
+                            }
+                        )
                     }
                 }
+
+                MovieBottomSheet(
+                    movie = moviesState.selectedMovie,
+                    onCloseClicked = {
+                        closeBottomSheet(it)
+                    }
+                )
             }
 
-            MoviesState.Loading -> {
+            is MoviesState.Loading -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -113,18 +149,40 @@ private fun MoviesComposeScreen(
                     CircularProgressIndicator()
                 }
             }
+
+            is MoviesState.Error -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = moviesState.errorMsg,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                        Button(onClick = { loadData()}) {
+                            Text("Retry")
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-fun MovieItem(movie: Movie, onLikeClicked: (Int) -> Unit) {
+fun MovieItem(
+    movie: Movie,
+    onMovieClicked: (Movie) -> Unit,
+    onLikeClicked: (Movie) -> Unit
+) {
+    var localMovie by remember { mutableStateOf(movie) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        onClick = { onMovieClicked(movie) }
     ) {
         Row(
             modifier = Modifier
@@ -133,7 +191,7 @@ fun MovieItem(movie: Movie, onLikeClicked: (Int) -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = movie.posterPath,
+                model = localMovie.posterPath,
                 contentDescription = "Movie Poster",
                 modifier = Modifier
                     .size(60.dp)
@@ -144,17 +202,22 @@ fun MovieItem(movie: Movie, onLikeClicked: (Int) -> Unit) {
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = movie.title, fontSize = 18.sp, color = Color.Black)
-                Text(text = movie.description, fontSize = 14.sp, color = Color.Gray)
+                Text(text = localMovie.title, fontSize = 18.sp, color = Color.Black)
+                Text(text = localMovie.description, fontSize = 14.sp, color = Color.Gray)
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            IconButton(onClick = { onLikeClicked(movie.id) }) {
+            IconButton(
+                onClick = {
+                    localMovie = localMovie.copy(liked = !localMovie.liked)
+                    onLikeClicked(localMovie)
+                }
+            ) {
                 Icon(
-                    imageVector = if (movie.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    imageVector = if (localMovie.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Like Button",
-                    tint = if (movie.liked) Color.Red else Color.Gray
+                    tint = if (localMovie.liked) Color.Red else Color.Gray
                 )
             }
         }
@@ -174,5 +237,5 @@ private fun PreviewsMoviesComposeScreen() {
                 liked = index % 2 == 0,
             )
         }
-    ), likeMovie = {}, viewLoaded = {})
+    ), likeMovie = { }, openMovieDetail = {}, closeBottomSheet = {}, loadData = {})
 }
