@@ -6,15 +6,18 @@ import javax.inject.Inject
 
 class MoviesMapper @Inject constructor() {
 
-    val mapToLocal: (Movie) -> MovieEntity = {
-        with(it) {
-            MovieEntity(id, title, description, posterPath)
-        }
-    }
+    fun mapToLocal(movie: Movie) = MovieEntity(
+        id = movie.id,
+        title = movie.title,
+        description = movie.description,
+        posterPath = movie.posterPath
+    )
 
-    val mapFromLocal: (MovieEntity) -> Movie = {
-        with(it) {
-            Movie(id, title, description, posterPath)
-        }
-    }
+
+    fun mapFromLocal(entity: MovieEntity) = Movie(
+        id = entity.id,
+        title = entity.title,
+        description = entity.description,
+        posterPath = entity.posterPath
+    )
 }
