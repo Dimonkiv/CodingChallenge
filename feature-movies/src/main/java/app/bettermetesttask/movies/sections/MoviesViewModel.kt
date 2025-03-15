@@ -7,7 +7,6 @@ import app.bettermetesttask.domainmovies.entries.Movie
 import app.bettermetesttask.domainmovies.interactors.AddMovieToFavoritesUseCase
 import app.bettermetesttask.domainmovies.interactors.ObserveMoviesUseCase
 import app.bettermetesttask.domainmovies.interactors.RemoveMovieFromFavoritesUseCase
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,12 +41,28 @@ class MoviesViewModel @Inject constructor(
     }
 
     fun likeMovie(movie: Movie) {
-        GlobalScope.launch {
-            if (movie.liked) {
-                likeMovieUseCase(movie.id)
+        viewModelScope.launch {
+            if (!movie.liked) {
+                likeMovieUseCase.get(movie.id)
             } else {
-                dislikeMovieUseCase(movie.id)
+                dislikeMovieUseCase.get(movie.id)
             }
+
+            updateMovieState(movie.id, !movie.liked)
+        }
+    }
+
+    private fun updateMovieState(movieId: Int, newLikedState: Boolean) {
+        val currentState = moviesMutableFlow.value
+        if (currentState is MoviesState.Loaded) {
+            val updatedMovies = currentState.movies.map {
+                if (it.id == movieId) {
+                    it.copy(liked = newLikedState)
+                } else {
+                    it
+                }
+            }
+            moviesMutableFlow.value = MoviesState.Loaded(updatedMovies)
         }
     }
 
