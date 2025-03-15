@@ -17,10 +17,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,22 +37,29 @@ import coil3.compose.AsyncImage
 @Composable
 fun MovieBottomSheet(
     movie: Movie?,
-    onStateChange: (SheetValue) -> Unit
+    onCloseClicked: (Movie) -> Unit
 ) {
-    val bottomSheetState = rememberModalBottomSheetState()
     if (movie != null) {
+        var localMovie by remember { mutableStateOf(movie) }
+
         ModalBottomSheet(
-            sheetState = bottomSheetState,
-            onDismissRequest = { onStateChange(SheetValue.Hidden) },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            onDismissRequest = { onCloseClicked(localMovie) },
         ) {
-            MovieContent(movie)
+            MovieContent(
+                movie = localMovie,
+                onLikeClicked = {
+                    localMovie = localMovie.copy(liked = !localMovie.liked)
+                }
+            )
         }
     }
 }
 
 @Composable
 fun MovieContent(
-    movie: Movie
+    movie: Movie,
+    onLikeClicked: (Movie) -> Unit
 ) {
         Column(
             modifier = Modifier
@@ -79,7 +89,7 @@ fun MovieContent(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                IconButton(onClick = {}) {
+                IconButton(onClick = { onLikeClicked(movie) }) {
                     Icon(
                         imageVector = if (movie.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Like Button",

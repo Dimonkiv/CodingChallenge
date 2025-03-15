@@ -50,16 +50,16 @@ class MoviesViewModel @Inject constructor(
                 dislikeMovieUseCase.get(movie.id)
             }
 
-            updateMovieState(movie)
+            updateMovieState(movie.id, movie.liked)
         }
     }
 
-    private fun updateMovieState(movie: Movie) {
+    private fun updateMovieState(movieId: Int, liked: Boolean) {
         val currentState = moviesMutableFlow.value
         if (currentState is MoviesState.Loaded) {
             val updatedMovies = currentState.movies.map {
-                if (it.id == movie.id) {
-                    it.copy(liked = !movie.liked)
+                if (it.id == movieId) {
+                    it.copy(liked = liked)
                 } else {
                     it
                 }
@@ -72,7 +72,8 @@ class MoviesViewModel @Inject constructor(
         moviesMutableFlow.value = currentLoadedState.copy(selectedMovie = movie)
     }
 
-    fun closeBottomSheet() {
+    fun closeBottomSheet(movie: Movie) {
+        likeMovie(movie)
         moviesMutableFlow.value = currentLoadedState.copy(selectedMovie = null)
     }
 }
